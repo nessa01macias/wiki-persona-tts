@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BROADSIDE.EXE — press any article into a podcast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F5EFDF;
+    --card: #FBF7EC;
+    --backdrop: #A8A49A;
+    --ink: #1C1915;
+    --ink-soft: #5A5348;
+    --stamp: #9E2B12;
+    --sans: 'Space Grotesk', sans-serif;
+    --pixel: 'VT323', monospace;
+    --hatch: repeating-linear-gradient(45deg, #1C1915 0 2px, transparent 2px 7px);
+    --dots: radial-gradient(#1C1915 1px, transparent 1.5px);
+    --shadow: 6px 6px 0 #1C1915;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--backdrop);
+    color: var(--ink);
+    font-family: var(--sans);
+    padding: 40px 16px 64px;
+    min-height: 100vh;
+  }
+  .window {
+    max-width: 700px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow);
+  }
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 3px solid var(--ink);
+    background: var(--paper);
+    padding: 8px 12px;
+  }
+  .controls { display: flex; gap: 6px; }
+  .controls span {
+    width: 18px; height: 18px;
+    border: 2px solid var(--ink);
+    background: var(--card);
+    font-family: var(--pixel);
+    font-size: 15px;
+    line-height: 14px;
+    text-align: center;
+    display: inline-block;
+  }
+  .titlebar .hatch { flex: 1; height: 18px; background: var(--hatch); border: 2px solid var(--ink); }
+  .titlebar .apptitle { font-family: var(--pixel); font-size: 20px; letter-spacing: 0.04em; }
+  .addressbar {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 3px solid var(--ink);
+    background-image: var(--dots);
+    background-size: 7px 7px;
+  }
+  .addressbar .back {
+    width: 40px;
+    border: 2px solid var(--ink);
+    background: var(--card);
+    font-family: var(--pixel);
+    font-size: 20px;
+    cursor: default;
+  }
+  .addressbar input {
+    flex: 1;
+    min-width: 0;
+    border: 2px solid var(--ink);
+    background: var(--card);
+    padding: 8px 12px;
+    font-family: var(--pixel);
+    font-size: 18px;
+    color: var(--ink);
+  }
+  .addressbar input:focus-visible, button:focus-visible { outline: 3px solid var(--stamp); outline-offset: 1px; }
+  .btn {
+    border: 2px solid var(--ink);
+    background: var(--card);
+    box-shadow: 4px 4px 0 var(--ink);
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .btn:hover { background: var(--paper); }
+  .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn-ink { background: var(--ink); color: var(--paper); }
+  .btn-ink:hover { background: var(--stamp); border-color: var(--ink); }
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 26px 26px 18px;
+    border-bottom: 3px solid var(--ink);
+  }
+  .masthead h1 { font-size: clamp(30px, 7vw, 44px); font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .masthead .tagline { font-size: 16px; margin-top: 6px; color: var(--ink-soft); }
+  .masthead .tagline b { color: var(--ink); }
+  .inner { padding: 22px 26px 30px; }
+  .panel-label {
+    font-family: var(--pixel);
+    font-size: 19px;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel-label::after { content: ""; flex: 1; height: 8px; background: var(--hatch); }
+  .filegrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  .file {
+    border: 2px solid var(--ink);
+    background: var(--card);
+    box-shadow: 4px 4px 0 var(--ink);
+    padding: 16px 12px 12px;
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .file:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .file svg { width: 44px; height: 44px; }
+  .file svg .fg { fill: var(--ink); }
+  .file svg .bg { fill: var(--card); }
+  .file .fname { font-family: var(--pixel); font-size: 19px; margin-top: 8px; }
+  .file .fdesc { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+  .file.selected { background: var(--ink); color: var(--paper); }
+  .file.selected .fdesc { color: #CFC7B4; }
+  .file.selected svg .fg { fill: var(--paper); }
+  .file.selected svg .bg { fill: var(--ink); }
+  .lengths { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; flex-wrap: wrap; }
+  .lengths .panel-label { margin: 0; }
+  .lengths .panel-label::after { display: none; }
+  .pill {
+    border: 2px solid var(--ink);
+    background: var(--card);
+    font-family: var(--pixel);
+    font-size: 18px;
+    padding: 5px 16px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .pill.selected { background: var(--stamp); color: var(--paper); }
+  .print-row button { width: 100%; padding: 14px; font-size: 17px; margin-bottom: 26px; }
+  .dialog {
+    border: 3px solid var(--ink);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    margin-bottom: 26px;
+    display: none;
+  }
+  .dialog.visible { display: block; }
+  .dialog-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--ink);
+    padding: 6px 12px;
+    font-family: var(--pixel);
+    font-size: 19px;
+    letter-spacing: 0.05em;
+  }
+  .dialog-title.inverted { background: var(--ink); color: var(--paper); }
+  .dialog-title .x { cursor: pointer; }
+  .dialog-body { padding: 16px; }
+  #pressing .dialog-body {
+    font-family: var(--pixel);
+    font-size: 22px;
+    line-height: 1.35;
+    letter-spacing: 0.08em;
+    word-break: break-word;
+    color: var(--ink);
+    max-height: 120px;
+    overflow: hidden;
+  }
+  #player .dialog-body { display: flex; align-items: center; gap: 16px; }
+  .play {
+    width: 56px; height: 56px;
+    border: 2px solid var(--ink);
+    background: var(--stamp);
+    color: var(--paper);
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--ink);
+    flex-shrink: 0;
+  }
+  .play:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .ep-title { font-weight: 700; font-size: 18px; }
+  .ep-meta { font-family: var(--pixel); font-size: 17px; color: var(--ink-soft); }
+  .wave { display: flex; gap: 3px; align-items: center; height: 24px; margin-top: 8px; }
+  .wave i { width: 5px; background: var(--ink); display: block; }
+  #error .dialog-body { text-align: center; padding: 20px 16px; }
+  #error .msg { font-family: var(--pixel); font-size: 22px; margin-bottom: 14px; }
+  #source .extract { font-size: 15px; line-height: 1.6; margin-bottom: 12px; }
+  #source .meta { font-family: var(--pixel); font-size: 17px; color: var(--ink-soft); }
+  #source .meta a { color: var(--stamp); }
+  #source h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .statusbar {
+    border-top: 3px solid var(--ink);
+    padding: 8px 14px;
+    font-family: var(--pixel);
+    font-size: 17px;
+    display: flex;
+    justify-content: space-between;
+    background-image: var(--dots);
+    background-size: 7px 7px;
+  }
+  .statusbar span { background: var(--paper); padding: 0 6px; }
+  @media (prefers-reduced-motion: reduce) { .btn:active, .file:active, .play:active { transform: none; } }
+
+  /* ---------- responsive ---------- */
+  .dice {
+    font-size: 20px !important;
+    padding: 6px 10px !important;
+    background: var(--paper);
+    transition: transform .15s ease;
+  }
+  .dice:hover { background: var(--stamp); color: var(--paper); border-color: var(--ink); }
+  .dice.rolling { animation: dice-roll .6s linear infinite; }
+  @keyframes dice-roll {
+    0%   { transform: rotate(0deg)   scale(1); }
+    25%  { transform: rotate(90deg)  scale(1.1); }
+    50%  { transform: rotate(180deg) scale(1); }
+    75%  { transform: rotate(270deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  @media (max-width: 720px) {
+    body { padding: 24px 10px 40px; }
+    .window { box-shadow: 4px 4px 0 var(--ink); }
+    .titlebar { padding: 6px 10px; gap: 8px; }
+    .titlebar .apptitle { font-size: 16px; }
+    .addressbar { padding: 8px 10px; gap: 8px; flex-wrap: wrap; }
+    .addressbar .back { width: 32px; font-size: 18px; }
+    .addressbar input { font-size: 15px; padding: 6px 10px; flex-basis: 100%; order: 5; }
+    .addressbar .dice { order: 2; }
+    .addressbar #set-type { order: 3; flex: 1; }
+    .masthead { padding: 18px; gap: 14px; }
+    .masthead h1 { font-size: clamp(26px, 8vw, 38px); }
+    .masthead .tagline { font-size: 14px; }
+    .inner { padding: 16px 18px 22px; }
+    .panel-label { font-size: 17px; margin-bottom: 10px; }
+    .filegrid { gap: 10px; margin-bottom: 20px; }
+    .file { padding: 12px 8px 8px; }
+    .file svg { width: 38px; height: 38px; }
+    .file .fname { font-size: 16px; }
+    .file .fdesc { font-size: 11px; }
+    .lengths { gap: 8px; margin-bottom: 20px; }
+    .pill { font-size: 15px; padding: 4px 12px; }
+    .btn { font-size: 13px; padding: 6px 12px; }
+    .print-row button { padding: 12px; font-size: 15px; margin-bottom: 20px; }
+    .dialog { margin-bottom: 20px; }
+    .dialog-title { font-size: 17px; padding: 5px 10px; }
+    .dialog-body { padding: 12px; }
+    #pressing .dialog-body { font-size: 18px; max-height: 90px; }
+    #player .dialog-body { gap: 12px; }
+    .play { width: 46px; height: 46px; font-size: 17px; }
+    .ep-title { font-size: 16px; }
+    .ep-meta { font-size: 14px; }
+    #error .msg { font-size: 18px; }
+    #source .extract { font-size: 14px; }
+    .statusbar { font-size: 14px; padding: 6px 10px; }
+  }
+  @media (max-width: 420px) {
+    body { padding: 12px 6px 24px; }
+    .window { border-width: 2px; }
+    .filegrid { grid-template-columns: 1fr; }
+    .masthead { flex-direction: column; align-items: flex-start; }
+    .masthead svg { width: 56px; height: 56px; }
+    .lengths .panel-label { font-size: 15px; }
+    .wave { height: 20px; }
+    .wave i { width: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="controls"><span>&times;</span><span>&minus;</span><span>+</span></div>
+    <div class="hatch" aria-hidden="true"></div>
+    <div class="apptitle">BROADSIDE.EXE</div>
+  </div>
+
+  <div class="addressbar">
+    <button class="back" aria-hidden="true" tabindex="-1">&#9664;</button>
+    <input type="text" id="wiki-url" placeholder="wiki://Great_Emu_War &mdash; paste a wikipedia link" aria-label="Wikipedia article link">
+    <button class="btn dice" id="roll-dice" title="Roll a random Wikipedia article" aria-label="Roll a random article">🎲</button>
+    <button class="btn btn-ink" id="set-type">SET IN TYPE</button>
+  </div>
+<div class="masthead">
+    <svg width="84" height="84" viewBox="0 0 100 100" role="img" aria-label="Linocut sun and moth mark">
+      <g fill="#1C1915">
+        <path d="M50 14 L47 2 L53 3 Z"/><path d="M67 18 L72 6 L76 10 Z"/><path d="M81 31 L92 24 L93 30 Z"/>
+        <path d="M86 49 L99 48 L97 54 Z"/><path d="M81 67 L92 74 L88 78 Z"/><path d="M67 81 L71 93 L65 92 Z"/>
+        <path d="M50 86 L52 99 L46 98 Z"/><path d="M33 81 L28 93 L24 89 Z"/><path d="M19 68 L8 75 L7 69 Z"/>
+        <path d="M14 50 L1 52 L3 46 Z"/><path d="M19 32 L8 26 L12 22 Z"/><path d="M33 18 L29 6 L35 7 Z"/>
+        <circle cx="50" cy="50" r="30" fill="none" stroke="#1C1915" stroke-width="5" stroke-dasharray="9 3 14 2 7 3"/>
+        <path d="M50 34 C44 42 38 46 36 54 C34 61 40 66 46 63 C48 62 49 59 50 56 C51 59 52 62 54 63 C60 66 66 61 64 54 C62 46 56 42 50 34 Z"/>
+        <path d="M43 40 L34 36 M57 40 L66 36" stroke="#1C1915" stroke-width="3" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <div>
+      <h1>BROADSIDE</h1>
+      <p class="tagline">We're not podcasters, we're <b>printers</b>. Any article, pressed into five to ten spoken minutes.</p>
+    </div>
+  </div>
+
+  <div class="inner">
+    <div class="panel-label">CHOOSE_NARRATOR</div>
+    <div class="filegrid" role="radiogroup" aria-label="Narrator">
+      <button class="file selected" data-persona="announcer" role="radio" aria-checked="true">
+        <svg viewBox="0 0 48 48"><rect class="bg" x="6" y="4" width="32" height="40"/><path class="fg" d="M30 4 L38 12 L30 12 Z"/><path class="fg" d="M6 4 H30 V12 H38 V44 H6 Z M10 8 V40 H34 V16 H26 V8 Z"/><path class="fg" d="M14 26 H18 L24 20 V36 L18 30 H14 Z M27 24 A6 6 0 0 1 27 32 V24 Z"/></svg>
+        <div class="fname">announcer.wav</div>
+        <div class="fdesc">history as play-by-play</div>
+      </button>
+      <button class="file" data-persona="socialite" role="radio" aria-checked="false">
+        <svg viewBox="0 0 48 48"><rect class="bg" x="6" y="4" width="32" height="40"/><path class="fg" d="M30 4 L38 12 L30 12 Z"/><path class="fg" d="M6 4 H30 V12 H38 V44 H6 Z M10 8 V40 H34 V16 H26 V8 Z"/><path class="fg" d="M17 20 H27 L31 25 L22 36 L13 25 Z M17.5 25 L22 31 L26.5 25 Z"/></svg>
+        <div class="fname">socialite.wav</div>
+        <div class="fdesc">gossip-column delivery</div>
+      </button>
+      <button class="file" data-persona="philosopher" role="radio" aria-checked="false">
+        <svg viewBox="0 0 48 48"><rect class="bg" x="6" y="4" width="32" height="40"/><path class="fg" d="M30 4 L38 12 L30 12 Z"/><path class="fg" d="M6 4 H30 V12 H38 V44 H6 Z M10 8 V40 H34 V16 H26 V8 Z"/><path class="fg" d="M22 18 A7 7 0 0 1 26 31 V34 H19 V31 A7 7 0 0 1 22 18 Z M19 36 H26 V39 H19 Z"/></svg>
+        <div class="fname">philosopher.wav</div>
+        <div class="fdesc">everything is a question</div>
+      </button>
+    </div>
+
+    <div class="lengths" role="radiogroup" aria-label="Edition length">
+      <div class="panel-label">EDITION_LENGTH</div>
+      <button class="pill" data-min="5" role="radio" aria-checked="false">5 MIN</button>
+      <button class="pill selected" data-min="8" role="radio" aria-checked="true">8 MIN</button>
+      <button class="pill" data-min="10" role="radio" aria-checked="false">10 MIN</button>
+    </div>
+
+    <div class="print-row">
+      <button class="btn btn-ink" id="print-edition">PRINT THE EDITION</button>
+    </div>
+
+    <div class="dialog" id="pressing">
+      <div class="dialog-title inverted"><span>PRESSING&hellip;</span><span class="x" data-close="pressing">&times;</span></div>
+      <div class="dialog-body" id="print-stream">PRINT PRINT PRINT PRINT</div>
+    </div>
+
+    <div class="dialog" id="error">
+      <div class="dialog-title inverted"><span>ERROR</span><span class="x" data-close="error">&times;</span></div>
+      <div class="dialog-body">
+        <div class="msg" id="error-msg">ARTICLE NOT FOUND</div>
+        <button class="btn" data-close="error">CLOSE</button>
+        <button class="btn" data-close="error">WAIT</button>
+      </div>
+    </div>
+<div class="dialog" id="player">
+      <div class="dialog-title"><span>NOW_PLAYING.WAV</span><span class="x" data-close="player">&times;</span></div>
+      <div class="dialog-body">
+        <button class="play" id="play-btn" aria-label="Play episode">&#9654;</button>
+        <div style="flex:1; min-width:0;">
+          <div class="ep-title" id="ep-title">&mdash;</div>
+          <div class="ep-meta" id="ep-meta">&mdash;</div>
+          <div class="wave" id="wave" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog visible" id="source">
+      <div class="dialog-title"><span>SOURCE_TEXT.TXT</span></div>
+      <div class="dialog-body">
+        <div class="meta" id="source-empty">no article set &middot; paste a wikipedia link in the address bar</div>
+        <div style="display:none;" id="source-body">
+          <h3 id="src-title"></h3>
+          <p class="extract" id="src-extract"></p>
+          <p class="meta"><span id="src-meta"></span> &middot; <a id="src-link" href="#" target="_blank" rel="noopener">read the full article</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span id="edition">EDITION NO. 1</span>
+    <span>INK: 100%</span>
+  </div>
+</div>
+
+<script>
+  const state = { persona: 'announcer', minutes: 8, article: null };
+  let printTimer = null;
+  let episodeAudio = null;
+
+  const wave = document.getElementById('wave');
+  const heights = [10,22,14,24,8,18,12,24,16,10,20,14,24,12,18,8,22,16,12,20,10,24,14,18];
+  heights.forEach(h => { const bar = document.createElement('i'); bar.style.height = h + 'px'; wave.appendChild(bar); });
+
+  document.querySelectorAll('[data-close]').forEach(el => {
+    el.addEventListener('click', () => {
+      const dlg = document.getElementById(el.dataset.close);
+      dlg.classList.remove('visible');
+      if (el.dataset.close === 'player' && episodeAudio) {
+        episodeAudio.pause();
+      }
+    });
+  });
+
+  document.querySelectorAll('.file').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.file').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-checked', 'false'); });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-checked', 'true');
+      state.persona = btn.dataset.persona;
+    });
+  });
+
+  document.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pill').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-checked', 'false'); });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-checked', 'true');
+      state.minutes = Number(btn.dataset.min);
+    });
+  });
+
+  function titleFromInput(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    const match = trimmed.match(/wiki(?::\/\/|\/)([^#?]+)/);
+    if (match) return decodeURIComponent(match[1]);
+    return trimmed.replace(/\s+/g, '_');
+  }
+
+  function showError(msg) {
+    document.getElementById('error-msg').textContent = msg;
+    document.getElementById('error').classList.add('visible');
+  }
+
+  async function fetchArticle() {
+    const title = titleFromInput(document.getElementById('wiki-url').value);
+    if (!title) { showError('NO ADDRESS SET'); return; }
+    document.getElementById('source-empty').textContent = 'fetching the source text\u2026';
+    try {
+      const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title));
+      if (!res.ok) throw new Error('not found');
+      const data = await res.json();
+      state.article = data;
+      document.getElementById('src-title').textContent = data.title;
+      document.getElementById('src-extract').textContent = data.extract;
+      document.getElementById('src-meta').textContent =
+        (data.description || 'wikipedia article') + ' \u00b7 summary of ' + data.extract.split(/\s+/).length + ' words shown';
+      document.getElementById('src-link').href = data.content_urls.desktop.page;
+      document.getElementById('source-empty').style.display = 'none';
+      document.getElementById('source-body').style.display = 'block';
+    } catch (err) {
+      document.getElementById('source-empty').textContent = 'no article set \u00b7 paste a wikipedia link in the address bar';
+      showError('ARTICLE NOT FOUND');
+    }
+  }
+
+  document.getElementById('set-type').addEventListener('click', fetchArticle);
+  document.getElementById('wiki-url').addEventListener('keydown', e => { if (e.key === 'Enter') fetchArticle(); });
+
+  async function rollDice() {
+    const dice = document.getElementById('roll-dice');
+    dice.classList.add('rolling');
+    dice.disabled = true;
+    try {
+      // Backend /random picks a curated slug AND fetches its Wikipedia summary
+      // server-side. We use the returned data directly so the dice flow is
+      // self-contained — no follow-up client-side Wikipedia fetch (which can
+      // be flaky in browsers).
+      const res = await fetch('/random');
+      if (!res.ok) { showError('DICE JAMMED'); return; }
+      const data = await res.json();
+      const title = data.title || '';
+      const slug = data.slug || title.replace(/\s+/g, '_');
+      const extract = data.extract || '';
+      const description = data.description || 'wikipedia article';
+      const pageUrl = (data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page)
+        || `https://en.wikipedia.org/wiki/${slug}`;
+
+      // Mirror the shape that fetchArticle() sets so the rest of the UI works.
+      state.article = { title, extract, description, content_urls: { desktop: { page: pageUrl } } };
+      document.getElementById('src-title').textContent = title;
+      document.getElementById('src-extract').textContent = extract;
+      document.getElementById('src-meta').textContent =
+        description + ' \u00b7 summary of ' + extract.split(/\s+/).length + ' words shown';
+      document.getElementById('src-link').href = pageUrl;
+      document.getElementById('wiki-url').value = 'wiki://' + slug;
+      document.getElementById('source-empty').style.display = 'none';
+      document.getElementById('source-body').style.display = 'block';
+    } catch (err) {
+      showError('DICE JAMMED');
+    } finally {
+      dice.classList.remove('rolling');
+      dice.disabled = false;
+    }
+  }
+  document.getElementById('roll-dice').addEventListener('click', rollDice);
+
+  const personaLabels = { announcer: 'announcer.wav', socialite: 'socialite.wav', philosopher: 'philosopher.wav' };
+
+  function stopPressing() {
+    if (printTimer) { clearInterval(printTimer); printTimer = null; }
+    document.getElementById('pressing').classList.remove('visible');
+  }
+
+  document.getElementById('print-edition').addEventListener('click', () => {
+    if (!state.article) { showError('SET AN ARTICLE IN TYPE FIRST'); return; }
+    const stream = document.getElementById('print-stream');
+    stream.textContent = 'PRINT PRINT PRINT PRINT';
+    document.getElementById('pressing').classList.add('visible');
+    document.getElementById('player').classList.remove('visible');
+    if (episodeAudio) { episodeAudio.pause(); episodeAudio = null; }
+    clearInterval(printTimer);
+    printTimer = setInterval(() => { stream.textContent += ' PRINT'; }, 300);
+    generateEpisode(state);
+  });
+
+  async function generateEpisode(state) {
+    try {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          persona: state.persona,
+          minutes: state.minutes,
+          title: state.article.title,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        stopPressing();
+        showError((data && data.error) ? data.error.toUpperCase() : 'PRESS JAMMED');
+        return;
+      }
+      stopPressing();
+
+      // Tear down any prior episode audio
+      if (episodeAudio) { episodeAudio.pause(); episodeAudio = null; }
+
+      // Wire audio element to the returned data URL
+      episodeAudio = new Audio(data.audio);
+      const playBtn = document.getElementById('play-btn');
+      playBtn.textContent = '\u25B6'; // play triangle
+      playBtn.onclick = () => {
+        if (!episodeAudio) return;
+        if (episodeAudio.paused) {
+          episodeAudio.play().catch(() => {});
+          playBtn.textContent = '\u23F8'; // pause
+        } else {
+          episodeAudio.pause();
+          playBtn.textContent = '\u25B6';
+        }
+      };
+      episodeAudio.addEventListener('ended', () => { playBtn.textContent = '\u25B6'; });
+      episodeAudio.play().catch(() => {}); // autoplay best-effort
+
+      document.getElementById('ep-title').textContent = state.article.title;
+      document.getElementById('ep-meta').textContent =
+        'read by ' + personaLabels[state.persona] + ' \u00b7 ' + state.minutes + ' min edition';
+      document.getElementById('player').classList.add('visible');
+
+      // Increment the edition counter
+      const editionEl = document.getElementById('edition');
+      const m = editionEl.textContent.match(/EDITION NO\. (\d+)/);
+      if (m) {
+        const n = parseInt(m[1], 10) + 1;
+        editionEl.textContent = 'EDITION NO. ' + n;
+      }
+    } catch (err) {
+      stopPressing();
+      showError('PRESS JAMMED');
+    }
+  }
+</script>
+</body>
+</html>
